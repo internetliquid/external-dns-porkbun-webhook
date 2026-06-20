@@ -1,0 +1,41 @@
+# Binaries / build output
+/bin/
+/dist/
+external-dns-porkbun-webhook
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary + coverage output
+*.test
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary / logs
+*.tmp
+*.temp
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Kubernetes
+*.kubeconfig
+
+# Internal Claude implementation guide / agent memory (not part of the published repo)
+CLAUDE.md
+.claude/

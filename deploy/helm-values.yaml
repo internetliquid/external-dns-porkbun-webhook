@@ -1,0 +1,79 @@
+# Helm values for running the Porkbun webhook as a sidecar of the official
+# kubernetes-sigs ExternalDNS chart.
+#
+#   helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+#   kubectl apply -f deploy/secret.yaml
+#   helm upgrade --install external-dns external-dns/external-dns \
+#     -n external-dns --create-namespace -f deploy/helm-values.yaml
+#
+# ExternalDNS reads the managed zones from the webhook's negotiation response,
+# so DOMAIN_FILTER below is the source of truth for which zones are managed.
+
+# Use TXT records for the ownership registry. Pick a stable, unique owner id.
+registry: txt
+txtOwnerId: external-dns-porkbun
+policy: upsert-only # change to "sync" to allow deletions
+
+sources:
+  - service
+  - ingress
+
+provider:
+  name: webhook
+  webhook:
+    image:
+      repository: ghcr.io/internetliquid/external-dns-porkbun-webhook
+      # Pin to a released tag; :latest is published only for the default branch.
+      tag: v0.1.0
+      pullPolicy: IfNotPresent
+    env:
+      - name: PORKBUN_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: porkbun-webhook-credentials
+            key: PORKBUN_API_KEY
+      - name: PORKBUN_API_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: porkbun-webhook-credentials
+            key: PORKBUN_API_SECRET
+      # DOMAIN_FILTER is REQUIRED — the webhook has no account-wide discovery
+      # mode. The webhook will refuse to start if this is empty.
+      - name: DOMAIN_FILTER
+        value: "example.com,example.org"
+      - name: LOG_LEVEL
+        value: info
+      - name: LOG_FORMAT
+        value: json
+      # Porkbun recommends conservative API usage; tune if needed.
+      - name: PORKBUN_RATE_LIMIT
+        value: "3"
+      - name: PORKBUN_BURST
+        value: "5"
+      - name: PORKBUN_TIMEOUT
+        value: "30s"
+      - name: RECORD_CACHE_TTL
+        value: 60s
+      - name: DEFAULT_TTL
+        value: "3600"
+      # Uncomment to log intended changes without calling the Porkbun API:
+      # - name: DRY_RUN
+      #   value: "true"
+    securityContext:
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        memory: 64Mi
+    # The chart's default probes already target /healthz on the http-webhook
+    # port (8080), which this webhook serves.
+
+image:
+  repository: registry.k8s.io/external-dns/external-dns
+  tag: v0.21.0

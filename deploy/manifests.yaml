@@ -1,0 +1,150 @@
+# Raw manifest fallback for running ExternalDNS with the Porkbun webhook as a
+# sidecar, for clusters not using Helm.
+#
+#   kubectl create namespace external-dns
+#   kubectl apply -f deploy/secret.yaml
+#   kubectl apply -f deploy/manifests.yaml
+#
+# The webhook binds its provider API to localhost:8888 (reachable only by the
+# ExternalDNS container in the same pod) and its health/metrics server to
+# :8080. ExternalDNS talks to it via --webhook-provider-url=http://localhost:8888.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: external-dns
+  namespace: external-dns
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: external-dns
+rules:
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "pods", "nodes"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "watch", "list"]
+  - apiGroups: ["extensions", "networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: external-dns
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: external-dns
+subjects:
+  - kind: ServiceAccount
+    name: external-dns
+    namespace: external-dns
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: external-dns
+  namespace: external-dns
+  labels:
+    app.kubernetes.io/name: external-dns
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: external-dns
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: external-dns
+    spec:
+      serviceAccountName: external-dns
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+      containers:
+        - name: external-dns
+          image: registry.k8s.io/external-dns/external-dns:v0.21.0
+          args:
+            - --provider=webhook
+            - --webhook-provider-url=http://localhost:8888
+            - --source=service
+            - --source=ingress
+            - --registry=txt
+            - --txt-owner-id=external-dns-porkbun
+            - --policy=upsert-only # set to "sync" to allow deletions
+            - --interval=1m
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 128Mi
+
+        - name: webhook
+          image: ghcr.io/internetliquid/external-dns-porkbun-webhook:latest
+          env:
+            - name: PORKBUN_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: porkbun-webhook-credentials
+                  key: PORKBUN_API_KEY
+            - name: PORKBUN_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: porkbun-webhook-credentials
+                  key: PORKBUN_API_SECRET
+            # DOMAIN_FILTER is REQUIRED — no account-wide discovery mode exists.
+            - name: DOMAIN_FILTER
+              value: "example.com,example.org"
+            - name: LOG_LEVEL
+              value: info
+            - name: LOG_FORMAT
+              value: json
+            - name: PORKBUN_RATE_LIMIT
+              value: "3"
+            - name: PORKBUN_BURST
+              value: "5"
+            - name: PORKBUN_TIMEOUT
+              value: "30s"
+            - name: RECORD_CACHE_TTL
+              value: 60s
+            - name: DEFAULT_TTL
+              value: "3600"
+          ports:
+            - name: http-webhook
+              containerPort: 8080 # health + metrics (0.0.0.0)
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-webhook
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http-webhook
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
