@@ -13,6 +13,11 @@ jobs:
   check:
     name: Lint, vet & test
     runs-on: ubuntu-latest
+    env:
+      # Surfaced to env so the integration step's `if` can gate on them: the
+      # `secrets` context is not available in `if:` conditions.
+      PORKBUN_API_KEY: ${{ secrets.PORKBUN_API_KEY }}
+      PORKBUN_API_SECRET: ${{ secrets.PORKBUN_API_SECRET }}
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
@@ -45,10 +50,7 @@ jobs:
       # Integration tests require live Porkbun credentials.
       # They run only when both secrets are available (not on forks).
       - name: Integration tests
-        if: ${{ secrets.PORKBUN_API_KEY != '' && secrets.PORKBUN_API_SECRET != '' }}
-        env:
-          PORKBUN_API_KEY: ${{ secrets.PORKBUN_API_KEY }}
-          PORKBUN_API_SECRET: ${{ secrets.PORKBUN_API_SECRET }}
+        if: ${{ env.PORKBUN_API_KEY != '' && env.PORKBUN_API_SECRET != '' }}
         run: go test -race -tags=integration ./...
 
   image:
