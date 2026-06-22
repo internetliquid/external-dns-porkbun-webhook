@@ -45,7 +45,7 @@ kos:
     labels:
       org.opencontainers.image.source: "https://github.com/internetliquid/external-dns-porkbun-webhook"
       org.opencontainers.image.description: "ExternalDNS webhook provider for Porkbun DNS"
-      org.opencontainers.image.licenses: "MIT"
+      org.opencontainers.image.licenses: "Apache-2.0"
 
 archives:
   - id: archive
@@ -59,10 +59,6 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
-sboms:
-  - id: archive
-    artifacts: archive
-
 # release-please owns the changelog and release notes.
 changelog:
   disable: true
@@ -72,5 +68,6 @@ release:
     owner: internetliquid
     name: external-dns-porkbun-webhook
   # The GitHub Release already exists (created by release-please); append the
-  # binaries, checksums, and SBOMs to it rather than recreating it.
+  # binaries and checksums to it rather than recreating it. The multi-arch
+  # image SBOM is produced by ko (kos.sbom) and attached to the image in GHCR.
   mode: append

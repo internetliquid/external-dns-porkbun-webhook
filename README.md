@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/internetliquid/external-dns-porkbun-webhook/actions/workflows/ci.yml/badge.svg)](https://github.com/internetliquid/external-dns-porkbun-webhook/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/internetliquid/external-dns-porkbun-webhook)](https://goreportcard.com/report/github.com/internetliquid/external-dns-porkbun-webhook)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 An [ExternalDNS](https://github.com/kubernetes-sigs/external-dns) **webhook
 provider** for [Porkbun](https://porkbun.com/) DNS. It lets ExternalDNS manage
@@ -142,11 +142,12 @@ versions that support the webhook provider (v0.14+). Go 1.26+.
 
 ## Dependencies and licenses
 
-This project is MIT licensed. Its notable dependencies and their licenses:
+This project is Apache-2.0 licensed (matching ExternalDNS upstream). Its notable
+dependencies and their licenses:
 
 | Dependency | License | Notes |
 | --- | --- | --- |
-| [`github.com/nrdcg/porkbun`](https://github.com/nrdcg/porkbun) | MPL-2.0 | Imported as an unmodified library. MPL-2.0's file-level copyleft applies only to modifications of the MPL-licensed files themselves; importing it from separate MIT-licensed files does not affect this project's license. |
+| [`github.com/nrdcg/porkbun`](https://github.com/nrdcg/porkbun) | MPL-2.0 | Imported as an unmodified library. MPL-2.0's file-level copyleft applies only to modifications of the MPL-licensed files themselves; importing it from separate Apache-2.0-licensed files does not affect this project's license. |
 | [`sigs.k8s.io/external-dns`](https://github.com/kubernetes-sigs/external-dns) | Apache-2.0 | |
 | [`github.com/prometheus/client_golang`](https://github.com/prometheus/client_golang) | Apache-2.0 | |
 | [`github.com/sirupsen/logrus`](https://github.com/sirupsen/logrus) | MIT | Used internally by the ExternalDNS webhook helper. |
@@ -171,4 +172,4 @@ description.
 
 ## License
 
-[MIT](LICENSE).
+[Apache 2.0](LICENSE).
