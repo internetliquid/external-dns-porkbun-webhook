@@ -1,0 +1,73 @@
+# GoReleaser config — https://goreleaser.com
+# Releases are cut by release-please (it owns the version, changelog, tag, and
+# GitHub Release); GoReleaser builds the artifacts on the tag and appends them.
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: webhook
+    main: ./cmd/webhook
+    binary: external-dns-porkbun-webhook
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+# Build the multi-arch container image with ko (no Dockerfile needed at release
+# time) on a distroless static base, and push it to GHCR.
+kos:
+  - id: image
+    build: webhook
+    base_image: gcr.io/distroless/static-debian12:nonroot
+    repositories:
+      - ghcr.io/internetliquid/external-dns-porkbun-webhook
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    bare: true
+    preserve_import_paths: false
+    user: "65532:65532"
+    sbom: spdx
+    tags:
+      - "{{ .Tag }}"
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    labels:
+      org.opencontainers.image.source: "https://github.com/internetliquid/external-dns-porkbun-webhook"
+      org.opencontainers.image.description: "ExternalDNS webhook provider for Porkbun DNS"
+      org.opencontainers.image.licenses: "Apache-2.0"
+
+archives:
+  - id: archive
+    ids:
+      - webhook
+    name_template: "{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+# release-please owns the changelog and release notes.
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: internetliquid
+    name: external-dns-porkbun-webhook
+  # The GitHub Release already exists (created by release-please); append the
+  # binaries and checksums to it rather than recreating it. The multi-arch
+  # image SBOM is produced by ko (kos.sbom) and attached to the image in GHCR.
+  mode: append

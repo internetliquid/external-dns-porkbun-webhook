@@ -1,0 +1,13 @@
+.git/
+.github/
+.claude/
+bin/
+deploy/
+*.md
+LICENSE
+Makefile
+.golangci.yml
+.dockerignore
+.gitignore
+coverage.*
+*.test
