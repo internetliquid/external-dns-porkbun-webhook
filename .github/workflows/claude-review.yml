@@ -1,0 +1,96 @@
+name: Claude merge review
+
+# One review per pull request, not one per push. It runs when the PR is opened
+# ready for review or moves out of draft, and again only when someone adds the
+# `re-review` label. Fix rounds are reviewed locally first (/babysit-pr), so a
+# push to the PR never starts a paid review on its own.
+#
+# It lives in its own file so that adding the label runs only this job. In the
+# same file as the required checks, a label event would re-run those checks and
+# could replace a failed result with a skipped one.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, labeled]
+    branches: [develop, main]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Pre-merge review by Claude. Skipped for bot-authored PRs (e.g. release-please's
+  # release PRs) and for PRs whose title carries [skip-review] or [WIP].
+  review:
+    name: Claude code review
+    if: >-
+      github.event.pull_request.draft == false &&
+      (github.event.action != 'labeled' || github.event.label.name == 're-review') &&
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      !contains(github.event.pull_request.title, '[skip-review]') &&
+      !contains(github.event.pull_request.title, '[WIP]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # write: the label-clearing step below removes `re-review`.
+      pull-requests: write
+      issues: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          model: "claude-opus-4-8"
+          use_sticky_comment: true
+          allowed_tools: ""
+          direct_prompt: |
+            ROLE: Senior Go engineer, pre-merge review of an ExternalDNS webhook provider for Porkbun DNS. Stack: Go 1.26; std-lib net/http via the external-dns `provider/webhook/api.StartHTTPApi` helper; a typed wrapper over the maintained `nrdcg/porkbun` client (internal rate limiter + per-zone TTL record cache); slog; Prometheus; distroless/nonroot image; release-please + GoReleaser/ko. Branch model develop+main. Greenfield — no backward-compat tolerated.
+
+            STANCE:
+            - Be skeptical but realistic. Most code is fine. Silence is approval.
+            - No praise, no "looks good," no thank-you, no closing remarks.
+            - Cite `path:LINE` for every finding. No vague advice.
+            - Severity (anchor honestly — most real findings are MINOR):
+              - BLOCKER — concrete bug, security gap, or invariant violation that should not merge. Rare.
+              - MAJOR — concrete bug or choice that will cause real problems soon. Uncommon.
+              - MINOR — real issue with bounded blast radius. Default tag for real findings.
+              - NIT — preference the compiler doesn't catch. Use sparingly.
+            - Skip categories with no real finding. Do not invent issues to fill slots.
+            - gofmt/go vet/golangci-lint/govulncheck already ran and passed — don't spend budget on style or on vulns they'd catch.
+
+            CHECK:
+            1. Invariants — the API key and secret are secrets: never logged, and scrubbed from transport errors (defensive, since `nrdcg` sends credentials in the POST body, not the URL); every outbound call carries a context with the bounded timeout; the rate limiter is never bypassed; DOMAIN_FILTER stays required (zones are not auto-discovered — `nrdcg` exposes no list-domains); the webhook contract methods stay conformant (Records / ApplyChanges / AdjustEndpoints / GetDomainFilter); record ids are resolved at apply time by re-listing and matching (type, name, content[, MX prio]), never cached in endpoint.ProviderSpecific. TTL: Porkbun's 600s minimum is **deliberately not clamped** — a sub-600 TTL is sent as-is so Porkbun's rejection surfaces the misconfiguration; flag any silent clamping, not the absence of it.
+            2. Go correctness in this diff — errors wrapped with %w and never swallowed; no data races (shared maps/fields touched across goroutines — metrics server, cache, limiter); context cancellation/timeouts honoured; response reads bounded; slices preallocated when the length is known; no goroutine leaks; output never depends on map-iteration order.
+            3. Provider mapping in this diff — endpoint↔record mapping correct for A/AAAA/CNAME/MX/TXT (MX `<pref> <exchange>` ↔ Prio+Content; TXT content is stored/returned UNQUOTED — pass as-is, do NOT strip quotes); longest-suffix zone resolution; apex host is `""` (omitempty) on write and the FQDN stripped to its relative label on read; create/update/delete translation avoids reconcile churn.
+            4. Porkbun client in this diff — success is `status == "SUCCESS"`; a non-200 surfaces as `*porkbun.ServerError` and BOTH 429 and 503 are treated as retryable; the `nrdcg` constructor is positional and secret-first (`New(secretAPIKey, apiKey)`); record ID string↔int coercion is bridged at the wrapper boundary (`strconv`); the cache is invalidated on every mutation.
+            5. Tests — table tests with httptest (via the `nrdcg` `BaseURL` seam) and the mock client cover the changed branches; race-sensitive code is exercised under -race.
+
+            OUTPUT:
+
+            **Verdict:** BLOCK / RISKY / OK
+
+            **Findings:** (omit heading if none)
+            - `[SEVERITY] path:LINE` — problem · why · fix.
+
+            No strengths section, TL;DR, thank-you, or closing.
+
+      # Adding `re-review` is how a person asks for another review. Clear it so the
+      # next request can add it again — re-adding a label that is already on the PR
+      # fires no event.
+      - name: Clear the re-review label
+        if: always() && github.event.action == 'labeled'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh api -X DELETE "repos/${REPO}/issues/${PR}/labels/re-review" >/dev/null \
+            || echo "::warning::could not remove the re-review label — remove it by hand before asking again"
