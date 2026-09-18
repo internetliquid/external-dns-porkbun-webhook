@@ -63,4 +63,3 @@ jobs:
       # GoReleaser/ko, so this validates only (no push).
       - name: Build image
         run: docker build --build-arg VERSION=ci -t external-dns-porkbun-webhook:ci .
-
