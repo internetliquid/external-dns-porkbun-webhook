@@ -23,13 +23,15 @@ permissions:
 
 jobs:
   # Pre-merge review by Claude. Skipped for bot-authored PRs (e.g. release-please's
-  # release PRs) and for PRs whose title carries [skip-review] or [WIP].
+  # release PRs), for PRs from forks (they get no secrets), and for PRs whose title
+  # carries [skip-review] or [WIP].
   review:
     name: Claude code review
     if: >-
       github.event.pull_request.draft == false &&
       (github.event.action != 'labeled' || github.event.label.name == 're-review') &&
-      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
       !contains(github.event.pull_request.title, '[skip-review]') &&
       !contains(github.event.pull_request.title, '[WIP]')
     runs-on: ubuntu-latest
@@ -39,19 +41,27 @@ jobs:
       pull-requests: write
       issues: read
       id-token: write
+      # lets the reviewer read this PR's workflow runs
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          # Full history, so `git diff origin/<base>...HEAD` finds where the PR branched off.
+          fetch-depth: 0
 
       - name: Run Claude Code Review
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          model: "claude-opus-4-8"
           use_sticky_comment: true
-          allowed_tools: ""
-          direct_prompt: |
+          # Without `track_progress` the review posts no comment.
+          track_progress: true
+          # Public repo: anyone can comment, and comments reach the prompt, so the reviewer
+          # gets no tool that edits or commits.
+          claude_args: |
+            --model opus
+            --disallowedTools "Agent,Edit,MultiEdit,Write,NotebookEdit,Bash(git add:*),Bash(git commit:*),Bash(git rm:*)"
+          prompt: |
             ROLE: Senior Go engineer, pre-merge review of an ExternalDNS webhook provider for Porkbun DNS. Stack: Go 1.26; std-lib net/http via the external-dns `provider/webhook/api.StartHTTPApi` helper; a typed wrapper over the maintained `nrdcg/porkbun` client (internal rate limiter + per-zone TTL record cache); slog; Prometheus; distroless/nonroot image; release-please + GoReleaser/ko. Branch model develop+main. Greenfield — no backward-compat tolerated.
 
             STANCE:
@@ -64,6 +74,8 @@ jobs:
               - MINOR — real issue with bounded blast radius. Default tag for real findings.
               - NIT — preference the compiler doesn't catch. Use sparingly.
             - Skip categories with no real finding. Do not invent issues to fill slots.
+            - Earlier reviews reach you only through the author's replies on this PR, so treat every finding answered there as settled.
+            - Every run reviews the whole PR, not just the latest commit: get it with `git diff origin/${{ github.base_ref }}...HEAD`, run as a command of its own (the base branch is already fetched; `git fetch` is not available).
             - gofmt/go vet/golangci-lint/govulncheck already ran and passed — don't spend budget on style or on vulns they'd catch.
 
             CHECK:

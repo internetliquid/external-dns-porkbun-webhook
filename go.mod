@@ -1,6 +1,6 @@
 module github.com/internetliquid/external-dns-porkbun-webhook
 
-go 1.26.4
+go 1.26.8
 
 require (
 	github.com/nrdcg/porkbun v0.4.0
