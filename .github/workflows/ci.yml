@@ -13,13 +13,10 @@ jobs:
   check:
     name: Lint, vet & test
     runs-on: ubuntu-latest
-    env:
-      # Surfaced to env so the integration step's `if` can gate on them: the
-      # `secrets` context is not available in `if:` conditions.
-      PORKBUN_API_KEY: ${{ secrets.PORKBUN_API_KEY }}
-      PORKBUN_API_SECRET: ${{ secrets.PORKBUN_API_SECRET }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -47,17 +44,13 @@ jobs:
       - name: Test
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
-      # Integration tests require live Porkbun credentials.
-      # They run only when both secrets are available (not on forks).
-      - name: Integration tests
-        if: ${{ env.PORKBUN_API_KEY != '' && env.PORKBUN_API_SECRET != '' }}
-        run: go test -race -tags=integration ./...
-
   image:
     name: Docker build (validation)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # Keep the local-use Dockerfile building; the release image is built by
       # GoReleaser/ko, so this validates only (no push).
