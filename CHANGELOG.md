@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/internetliquid/external-dns-porkbun-webhook/compare/v0.1.0...v0.1.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* **ci:** Go 1.26.8 clears govulncheck; the Claude review moves to v1 and reads the whole PR ([#14](https://github.com/internetliquid/external-dns-porkbun-webhook/issues/14)) ([534e147](https://github.com/internetliquid/external-dns-porkbun-webhook/commit/534e1476182faba45e95dc31348e8c2dc4ce7b2e))
+
 ## 0.1.0 (2026-06-23)
 
 
