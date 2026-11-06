@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -336,6 +337,31 @@ func TestApplyDelete_ResolvesIDAndIsIdempotent(t *testing.T) {
 	dels := m.opsOf("delete")
 	require.Len(t, dels, 1, "only the record that exists in the index should be deleted")
 	assert.Equal(t, "r1", dels[0].id)
+}
+
+// TC-10b: The delete log line names the record, so an operator can tell which
+// names went from the log alone.
+func TestApplyDelete_LogsName(t *testing.T) {
+	m := &mockClient{records: map[string][]porkbun.Record{
+		"example.com": {
+			{ID: "r1", Type: "A", Name: "www.example.com", Content: "192.0.2.1", TTL: "3600"},
+		},
+	}}
+	var buf bytes.Buffer
+	p := New(Options{
+		Client:       m,
+		DomainFilter: []string{"example.com"},
+		DefaultTTL:   3600,
+		Logger:       slog.New(slog.NewTextHandler(&buf, nil)),
+	})
+
+	err := p.ApplyChanges(context.Background(), &plan.Changes{
+		Delete: []*endpoint.Endpoint{
+			{DNSName: "www.example.com", RecordType: "A", Targets: endpoint.Targets{"192.0.2.1"}},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), `msg="deleting record" zone=example.com dnsName=www.example.com type=A value=192.0.2.1`)
 }
 
 // TC-11: The zone record index is memoized within a single ApplyChanges call:
