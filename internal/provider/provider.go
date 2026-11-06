@@ -266,7 +266,7 @@ func (p *PorkbunProvider) applyDelete(ctx context.Context, state *applyState, ep
 			p.logger.Warn("delete: record not found, skipping", "dnsName", ep.DNSName, "type", ep.RecordType, "target", target)
 			continue
 		}
-		p.logger.Info("deleting record", "zone", zone, "type", ep.RecordType, "value", rec.Content)
+		p.logger.Info("deleting record", "zone", zone, "dnsName", ep.DNSName, "type", ep.RecordType, "value", rec.Content)
 		if err := p.client.DeleteRecord(ctx, zone, rec.ID); err != nil {
 			return fmt.Errorf("delete %s %s: %w", ep.RecordType, ep.DNSName, err)
 		}
