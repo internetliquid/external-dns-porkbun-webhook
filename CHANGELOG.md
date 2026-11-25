@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/internetliquid/external-dns-porkbun-webhook/compare/v0.1.1...v0.1.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **image:** distroless debian13 base and Go 1.26.11; clear GO-2026-6859 ([#25](https://github.com/internetliquid/external-dns-porkbun-webhook/issues/25)) ([252e56e](https://github.com/internetliquid/external-dns-porkbun-webhook/commit/252e56ecf23e8dc1c11d3f85ab7985428214a890))
+
 ## [0.1.1](https://github.com/internetliquid/external-dns-porkbun-webhook/compare/v0.1.0...v0.1.1) (2026-11-06)
 
 
