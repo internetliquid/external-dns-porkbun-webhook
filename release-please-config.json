@@ -5,7 +5,17 @@
   "packages": {
     ".": {
       "release-type": "go",
-      "package-name": "external-dns-porkbun-webhook"
+      "package-name": "external-dns-porkbun-webhook",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "deploy/manifests.yaml"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/helm-values.yaml"
+        }
+      ]
     }
   }
 }
