@@ -138,7 +138,8 @@ uses TXT records for its ownership registry. MX targets use ExternalDNS's
 
 Built against ExternalDNS **v0.21.0** and its webhook provider API
 (`application/external.dns.webhook+json;version=1`). It works with ExternalDNS
-versions that support the webhook provider (v0.14+). Go 1.26+.
+versions that support the webhook provider (v0.14+). It builds with the Go
+version on the `go` line of [`go.mod`](go.mod).
 
 ## Dependencies and licenses
 

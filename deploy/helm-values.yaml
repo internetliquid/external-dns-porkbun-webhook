@@ -24,7 +24,7 @@ provider:
     image:
       repository: ghcr.io/internetliquid/external-dns-porkbun-webhook
       # Pin to a released tag; :latest is published only for the default branch.
-      tag: v0.1.0
+      tag: v0.1.2
       pullPolicy: IfNotPresent
     env:
       - name: PORKBUN_API_KEY
