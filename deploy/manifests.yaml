@@ -92,7 +92,7 @@ spec:
               memory: 128Mi
 
         - name: webhook
-          image: ghcr.io/internetliquid/external-dns-porkbun-webhook:latest
+          image: ghcr.io/internetliquid/external-dns-porkbun-webhook:v0.1.2
           env:
             - name: PORKBUN_API_KEY
               valueFrom:
